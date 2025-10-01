@@ -8,6 +8,7 @@ import crypto from 'crypto';
 import { WASMExecutor } from './wasm-canon.js';
 import { FastLookup } from './fast-lookup.js';
 import { CTCAnalyzer } from './ctc-analyzer.js';
+import { SimpleSemanticHasher } from './simple-semantic-hash.js';
 
 const PERF_BUDGET = {
   L0_SYNTAX: 0.1,    // ms - Blake3 only
@@ -22,6 +23,7 @@ class S0FractalIRL {
     this.lookup = new FastLookup();
     this.executor = new WASMExecutor();
     this.ctc = new CTCAnalyzer();
+    this.hasher = new SimpleSemanticHasher();
     this.proofCache = new Map();
 
     this.stats = {
@@ -33,45 +35,26 @@ class S0FractalIRL {
     };
   }
 
-  // Generate multi-layer hash with hard timeouts
+  // Generate multi-layer hash with REAL semantic deduplication
   generateHash(code) {
     const start = performance.now();
 
-    // L0: Always works (0.1ms) - Simple blake3
-    const h0 = this.blake3Hash(this.normalizeAST(code));
+    // Use our WORKING semantic hasher!
+    const semantic = this.hasher.hash(code);
 
-    // L1: Try canonical, fallback if slow
-    let h1 = h0; // default to L0
-    const l1Start = performance.now();
-    try {
-      h1 = this.betaEtaReduce(code);
-      const l1Time = performance.now() - l1Start;
-      if (l1Time > PERF_BUDGET.L1_CANONICAL) {
-        console.warn(`L1 took ${l1Time.toFixed(1)}ms, exceeded budget`);
-      }
-    } catch (e) {
-      console.warn(`L1 failed, using L0 for ${h0.slice(0, 8)}`);
-    }
+    // L0: Semantic hash (normalized operations)
+    const h0 = semantic.hash;
 
-    // L2: Only if we have budget left
-    let h2 = h1; // default to L1
-    const elapsed = performance.now() - start;
-    if (elapsed < 20) { // Still have 10ms budget
-      try {
-        const l2Start = performance.now();
-        h2 = this.weisfeilerLehman(code, { depth: 3 });
-        const l2Time = performance.now() - l2Start;
-        if (l2Time > 10) {
-          console.warn(`L2 took ${l2Time.toFixed(1)}ms`);
-        }
-      } catch {
-        // Silent fallback
-      }
-    }
+    // L1: AST structure hash
+    const h1 = this.blake3Hash(JSON.stringify(semantic.signature));
+
+    // L2: Raw code hash (for exact match)
+    const h2 = this.blake3Hash(this.normalizeAST(code));
 
     this.stats.totalHashTime += performance.now() - start;
 
-    return `${h2.slice(0, 8)}-${h1.slice(0, 4)}-${h0.slice(0, 4)}`;
+    // Format: semantic-structure-exact
+    return `${h0.slice(0, 8)}-${h1.slice(0, 4)}-${h2.slice(0, 4)}`;
   }
 
   // Mock hash functions for demo

@@ -10,6 +10,7 @@
     "lookup": "node fast-lookup.js",
     "wasm": "node wasm-canon.js",
     "ctc": "node ctc-analyzer.js",
+    "hash": "node simple-semantic-hash.js",
     "start": "node index.js"
   },
   "keywords": [
@@ -17,13 +18,16 @@
     "wasm",
     "performance",
     "bloom-filter",
-    "ctc"
+    "ctc",
+    "semantic-hash"
   ],
   "author": "s0fractal",
   "license": "MIT",
   "engines": {
     "node": ">=16.0.0"
   },
-  "dependencies": {},
+  "dependencies": {
+    "acorn": "^8.11.0"
+  },
   "devDependencies": {}
 }
