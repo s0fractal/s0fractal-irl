@@ -1,0 +1,95 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "version": "1.0.0",
+  "title": "s0fractal-IRL Function Registry Schema",
+  "description": "Production-ready function registry with performance-first design",
+
+  "definitions": {
+    "hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{8}(-[a-f0-9]{4}){2}$",
+      "description": "Format: HHHHHHHH-HHHH-HHHH (H2v-H1-H0)"
+    },
+
+    "performanceBudget": {
+      "type": "object",
+      "properties": {
+        "L0_SYNTAX": { "type": "number", "default": 0.1, "description": "ms - Blake3 only" },
+        "L1_CANONICAL": { "type": "number", "default": 10, "description": "ms - egg with timeout" },
+        "L2_SEMANTIC": { "type": "number", "default": 50, "description": "ms - WL-hash, depth 3" },
+        "CTC_ANALYSIS": { "type": "number", "default": 1, "description": "ms - max 5 iterations" },
+        "TOTAL_MAX": { "type": "number", "default": 30, "description": "ms - hard ceiling" }
+      }
+    },
+
+    "functionEntry": {
+      "type": "object",
+      "required": ["hash", "source", "wasm", "created"],
+      "properties": {
+        "hash": { "$ref": "#/definitions/hash" },
+        "source": { "type": "string", "description": "Original source code" },
+        "wasm": { "type": "string", "format": "base64", "description": "Compiled WASM binary" },
+        "created": { "type": "string", "format": "date-time" },
+        "perf": {
+          "type": "object",
+          "properties": {
+            "hashTime": { "type": "number", "description": "ms to generate hash" },
+            "execTime": { "type": "number", "description": "avg execution time ms" },
+            "cacheHit": { "type": "number", "description": "cache hit rate 0-1" }
+          }
+        },
+        "deps": {
+          "type": "object",
+          "maxProperties": 2,
+          "description": "B2 rule: max 2 dependencies",
+          "additionalProperties": { "$ref": "#/definitions/hash" }
+        },
+        "proofs": {
+          "type": "object",
+          "properties": {
+            "L0": { "type": "boolean", "description": "Property tests passed" },
+            "L1": { "type": "boolean", "description": "SMT verified (optional)" },
+            "L2": { "type": "boolean", "description": "Formal proof (optional)" }
+          }
+        },
+        "ctc": {
+          "type": "object",
+          "description": "CTC analysis results",
+          "properties": {
+            "type": { "enum": ["timeout", "loop", "bounded", "fixed"] },
+            "period": { "type": "integer" },
+            "iterations": { "type": "integer" }
+          }
+        }
+      }
+    }
+  },
+
+  "type": "object",
+  "properties": {
+    "version": { "type": "string" },
+    "registry": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/definitions/functionEntry" }
+    },
+    "index": {
+      "type": "object",
+      "properties": {
+        "bloom": { "type": "string", "format": "base64", "description": "Serialized bloom filter" },
+        "sieve": { "type": "array", "items": { "$ref": "#/definitions/hash" } },
+        "negative": { "type": "array", "items": { "$ref": "#/definitions/hash" } }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "properties": {
+        "totalFunctions": { "type": "integer" },
+        "medianLatency": { "type": "number" },
+        "p99Latency": { "type": "number" },
+        "cacheHitRate": { "type": "number" },
+        "weeklyGrowth": { "type": "number" },
+        "mrr": { "type": "number" }
+      }
+    }
+  }
+}
